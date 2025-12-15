@@ -118,6 +118,17 @@ public class WebpDecoderTests
     }
 
     [Theory]
+    [WithFile(Lossy.LosslessSRgbGray, PixelTypes.Rgba32)]
+    [WithFile(Lossy.LossySRgbGray, PixelTypes.Rgba32)]
+    public void WebpDecoder_CanDecode_WithIccProfile<TPixel>(TestImageProvider<TPixel> provider)
+        where TPixel : unmanaged, IPixel<TPixel>
+    {
+        using Image<TPixel> image = provider.GetImage(WebpDecoder.Instance, new DecoderOptions { ColorProfileHandling = ColorProfileHandling.Convert });
+        image.DebugSave(provider);
+        image.CompareToReferenceOutput(provider, ImageComparer.Exact);
+    }
+
+    [Theory]
     [WithFile(Lossy.SegmentationNoFilter04, PixelTypes.Rgba32)]
     [WithFile(Lossy.SegmentationNoFilter05, PixelTypes.Rgba32)]
     [WithFile(Lossy.SegmentationNoFilter06, PixelTypes.Rgba32)]

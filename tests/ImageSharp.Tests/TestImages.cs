@@ -875,6 +875,10 @@ public static class TestImages
             public const string AlphaThinkingSmiley = "Webp/1602311202.webp";
             public const string AlphaSticker = "Webp/sticker.webp";
 
+            // Icc test
+            public const string LosslessSRgbGray = "Webp/lossless_sRGB_Gray.webp";
+            public const string LossySRgbGray = "Webp/lossy_sRGB_Gray.webp";
+
             // Issues
             public const string Issue1594 = "Webp/issues/Issue1594.webp";
             public const string Issue2243 = "Webp/issues/Issue2243.webp";

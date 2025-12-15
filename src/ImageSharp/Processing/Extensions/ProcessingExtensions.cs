@@ -1,7 +1,13 @@
 // Copyright (c) Six Labors.
 // Licensed under the Six Labors Split License.
 
+using System.Buffers;
+using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using SixLabors.ImageSharp.Advanced;
+using SixLabors.ImageSharp.ColorProfiles;
+using SixLabors.ImageSharp.Metadata.Profiles.Icc;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing.Processors;
 
@@ -264,6 +270,64 @@ public static partial class ProcessingExtensions
         }
 
         return source;
+    }
+
+    /// <summary>
+    /// Convert color accordinlgy to the IccProfile. Both Icc profile need to be Rgb.
+    /// </summary>
+    /// <typeparam name="TPixel">The pixel format.</typeparam>
+    /// <param name="image">The image processing context.</param>
+    /// <param name="sourceProfile">The source profile (Probably image.Metadata.IccProfile.</param>
+    /// <param name="destinationProfile">The desired profile.</param>
+    public static void ApplyIccProfile<TPixel>(this Image<TPixel> image, IccProfile sourceProfile, IccProfile destinationProfile)
+        where TPixel : unmanaged, IPixel<TPixel>
+    {
+        ColorConversionOptions options = new()
+        {
+            SourceIccProfile = sourceProfile,
+            TargetIccProfile = destinationProfile,
+        };
+
+        ColorProfileConverter converter = new(options);
+
+        image.ProcessPixelRows(pixelAccessor =>
+            {
+                using IMemoryOwner<float> rgbBuffer = image.Configuration.MemoryAllocator.Allocate<float>(pixelAccessor.Width * 3);
+                using IMemoryOwner<float> alphaBuffer = image.Configuration.MemoryAllocator.Allocate<float>(pixelAccessor.Width);
+                Span<float> rgbPacked = rgbBuffer.Memory.Span;
+                ref float rgbPackedRef = ref MemoryMarshal.GetReference(rgbPacked);
+                Span<float> alphaPacked = alphaBuffer.Memory.Span;
+                ref float alphaPackedRef = ref MemoryMarshal.GetReference(alphaPacked);
+
+                for (int y = 0; y < pixelAccessor.Height; y++)
+                {
+                    Span<TPixel> pixelsRow = pixelAccessor.GetRowSpan(y);
+                    int rgbIdx = 0;
+                    for (int x = 0; x < pixelsRow.Length; x++, rgbIdx += 3)
+                    {
+                        Vector4 rgba = pixelsRow[x].ToScaledVector4();
+                        Unsafe.Add(ref rgbPackedRef, rgbIdx) = rgba.X;
+                        Unsafe.Add(ref rgbPackedRef, rgbIdx + 1) = rgba.Y;
+                        Unsafe.Add(ref rgbPackedRef, rgbIdx + 2) = rgba.Z;
+                        Unsafe.Add(ref alphaPackedRef, x) = rgba.W;
+                    }
+
+                    Span<Rgb> source = MemoryMarshal.Cast<float, Rgb>(rgbPacked);
+                    Span<Rgb> destination = MemoryMarshal.Cast<float, Rgb>(rgbPacked);
+                    converter.Convert<Rgb, Rgb>(source, destination);
+
+                    rgbIdx = 0;
+                    for (int x = 0; x < pixelsRow.Length; x++, rgbIdx += 3)
+                    {
+                        float r = Unsafe.Add(ref rgbPackedRef, rgbIdx);
+                        float g = Unsafe.Add(ref rgbPackedRef, rgbIdx + 1);
+                        float b = Unsafe.Add(ref rgbPackedRef, rgbIdx + 2);
+                        float a = Unsafe.Add(ref alphaPackedRef, x);
+
+                        pixelsRow[x] = TPixel.FromScaledVector4(new Vector4(r, g, b, a));
+                    }
+                }
+            });
     }
 
     private class ProcessingVisitor : IImageVisitor

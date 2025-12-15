@@ -3,12 +3,15 @@
 
 using System.Buffers;
 using System.Buffers.Binary;
+using SixLabors.ImageSharp.ColorProfiles.Icc;
 using SixLabors.ImageSharp.Formats.Webp.Lossless;
 using SixLabors.ImageSharp.Formats.Webp.Lossy;
 using SixLabors.ImageSharp.IO;
 using SixLabors.ImageSharp.Memory;
 using SixLabors.ImageSharp.Metadata;
+using SixLabors.ImageSharp.Metadata.Profiles.Icc;
 using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
 
 namespace SixLabors.ImageSharp.Formats.Webp;
 
@@ -120,6 +123,11 @@ internal sealed class WebpDecoderCore : ImageDecoderCore, IDisposable
                 if (this.webImageInfo.Features != null)
                 {
                     this.ParseOptionalChunks(stream, metadata, this.webImageInfo.Features, buffer);
+                }
+
+                if (this.Options.TryGetIccProfileForColorConversion(metadata.IccProfile, out IccProfile? iccProfile))
+                {
+                    image.ApplyIccProfile(iccProfile, CompactSrgbV4Profile.Profile);
                 }
 
                 return image;
