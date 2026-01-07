@@ -244,7 +244,7 @@ jobs:
         id: compute-version
         shell: pwsh
         run: |
-          $date = Get-Date -Format "yyyy.MM.dd"
+          $date = Get-Date -Format "yyyy.M.d"
           $buildNumber = "${{ github.run_number }}"
           $version = "$date-mc.$buildNumber"
           echo "version=$version" >> $env:GITHUB_OUTPUT
